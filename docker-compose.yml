@@ -1,0 +1,81 @@
+version: '3.7'
+
+services:
+  redis-sentinel:
+    image: 'bitnami/redis-sentinel:latest'
+    volumes:
+      - redis-sentinel_data:/bitnami
+    entrypoint: |
+      bash -c 'bash -s <<EOF
+      "/bin/bash" -c "cat <<EOF > /bitnami/redis-sentinel/conf/sentinel.conf
+      port 26379
+      dir /tmp
+      sentinel resolve-hostnames yes
+      sentinel monitor mymaster redis 6379 2
+      sentinel down-after-milliseconds mymaster 5000
+      sentinel parallel-syncs mymaster 1
+      sentinel failover-timeout mymaster 5000
+      sentinel auth-pass mymaster 123456aA@
+      EOF"
+      "/bin/bash" -c "redis-sentinel /bitnami/redis-sentinel/conf/sentinel.conf"
+      EOF'
+    deploy:
+      mode: replicated
+      replicas: 3
+    depends_on:
+      - redis
+      - redis-slave
+    networks:
+      - app-tier
+    ports:
+      - '26379-26381:26379'
+  redis:
+    image: 'bitnami/redis:latest'
+    environment:
+      - REDIS_REPLICATION_MODE=master
+      - REDIS_PASSWORD=123456aA@
+    volumes:
+      - redis_data:/bitnami
+    networks:
+      - app-tier
+    ports:
+      - '6379:6379'
+  redis-slave:
+    image: 'bitnami/redis:latest'
+    environment:
+      - REDIS_REPLICATION_MODE=slave
+      - REDIS_MASTER_HOST=redis
+      - REDIS_MASTER_PORT_NUMBER=6379
+      - REDIS_MASTER_PASSWORD=123456aA@
+      - REDIS_PASSWORD=123456aA@
+    volumes:
+      - redis_slave_data:/bitnami
+    ports:
+      - '6379'
+    depends_on:
+      - redis
+    networks:
+      - app-tier
+  spring-app:
+    container_name: spring-app
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - 9999:8080
+    depends_on:
+      - redis
+      - redis-slave
+      - redis-sentinel
+    networks:
+      - app-tier
+volumes:
+  redis-sentinel_data:
+    driver: local
+  redis_data:
+    driver: local
+  redis_slave_data:
+    driver: local
+networks:
+  app-tier:
+    driver: bridge

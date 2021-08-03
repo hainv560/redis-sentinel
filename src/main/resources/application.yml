@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: 'Redis-Sentinel'
+
+logging:
+  level:
+    org.springframework.data.redis: info
+    com.lambdaworks.redis: info
+
+# Spring health monitoring
+management:
+  health:
+    jms:
+      enabled: false
+  endpoints:
+    web:
+      exposure:
+        include: '*'
+
+#redis
+redis:
+  db: 1
+  max-idle: 10
+  min-idle: 10
+  max-total: 10
+  max-wait-millis: 10000
+  test-on-borrow: true
+  timeout: 5000
+  password: 123456aA@
+  sentinel-master: mymaster
+  sentinel-nodes: redissentinel_redis-sentinel_1:26379|redissentinel_redis-sentinel_3:26380|redissentinel_redis-sentinel_2:26381
+
